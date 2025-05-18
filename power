@@ -1,0 +1,84 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Tạo đồng xu xám
+local function createCoin(innerColor)
+    local coinModel = Instance.new("Model")
+    coinModel.Name = "OOOCoin"
+
+    -- Viền xám đậm
+    local outer = Instance.new("Part")
+    outer.Size = Vector3.new(0.2, 2, 2)
+    outer.Shape = Enum.PartType.Cylinder
+    outer.Anchored = true
+    outer.CanCollide = false
+    outer.Material = Enum.Material.Metal
+    outer.Color = Color3.fromRGB(80, 80, 80)
+    outer.Parent = coinModel
+
+    -- Lõi xám sáng
+    local inner = Instance.new("Part")
+    inner.Size = Vector3.new(0.21, 1.4, 1.4)
+    inner.Shape = Enum.PartType.Cylinder
+    inner.Anchored = true
+    inner.CanCollide = false
+    inner.Material = Enum.Material.Neon
+    inner.Color = innerColor
+    inner.Parent = coinModel
+
+    coinModel.Parent = workspace
+    return coinModel, outer, inner
+end
+
+-- Tạo 3 đồng xu
+local coins = {}
+local positions = {2.5, 0, -2.5}
+for _, offset in ipairs(positions) do
+    local coin, outer, inner = createCoin(Color3.fromRGB(160, 160, 160))
+    table.insert(coins, {model = coin, outer = outer, inner = inner, offset = offset})
+end
+
+-- Cập nhật vị trí trước mặt nhân vật mỗi frame
+local renderStepConn
+renderStepConn = RunService.RenderStepped:Connect(function()
+    if not hrp or not hrp.Parent then
+        renderStepConn:Disconnect()
+        return
+    end
+
+    for _, coin in ipairs(coins) do
+        local forward = hrp.CFrame.LookVector
+        local right = hrp.CFrame.RightVector
+        local up = Vector3.new(0, 1, 0)
+
+        local pos = hrp.Position + forward * 4 + up * coin.offset
+        local face = hrp.Position
+        local cf = CFrame.lookAt(pos, face) * CFrame.Angles(0, math.rad(90), 0)
+
+        coin.outer.CFrame = cf
+        coin.inner.CFrame = cf
+    end
+end)
+
+-- Sau 1 giây, bay vào ngực
+task.wait(1)
+renderStepConn:Disconnect()
+
+for _, coin in ipairs(coins) do
+    local goalPos = hrp.Position + hrp.CFrame.LookVector * -0.5
+    local goalCFrame = CFrame.lookAt(goalPos, hrp.Position) * CFrame.Angles(0, math.rad(90), 0)
+
+    TweenService:Create(coin.outer, TweenInfo.new(0.5), {CFrame = goalCFrame}):Play()
+    TweenService:Create(coin.inner, TweenInfo.new(0.5), {CFrame = goalCFrame}):Play()
+end
+
+-- Xóa hiệu ứng sau 0.6 giây
+task.wait(0.6)
+for _, coin in ipairs(coins) do
+    coin.model:Destroy()
+end
