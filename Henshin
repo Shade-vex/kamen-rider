@@ -1,0 +1,90 @@
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
+
+-- Tạo đồng xu hình tròn (viền vàng, lõi màu)
+local function createCoin(innerColor)
+    local coinModel = Instance.new("Model")
+    coinModel.Name = "OOOCoin"
+
+    -- Viền vàng
+    local outer = Instance.new("Part")
+    outer.Size = Vector3.new(0.2, 2, 2)
+    outer.Shape = Enum.PartType.Cylinder
+    outer.Anchored = true
+    outer.CanCollide = false
+    outer.Material = Enum.Material.Metal
+    outer.Color = Color3.fromRGB(255, 215, 0)
+    outer.Parent = coinModel
+
+    -- Lõi bên trong
+    local inner = Instance.new("Part")
+    inner.Size = Vector3.new(0.21, 1.4, 1.4)
+    inner.Shape = Enum.PartType.Cylinder
+    inner.Anchored = true
+    inner.CanCollide = false
+    inner.Material = Enum.Material.Neon
+    inner.Color = innerColor
+    inner.Parent = coinModel
+
+    coinModel.Parent = workspace
+    return coinModel, outer, inner
+end
+
+-- Dữ liệu đồng xu (Taka - Tora - Batta)
+local coinData = {
+    {offset = 2.5, color = Color3.fromRGB(255, 0, 0)},     -- Taka
+    {offset = 0, color = Color3.fromRGB(255, 255, 0)},     -- Tora
+    {offset = -2.5, color = Color3.fromRGB(0, 255, 0)}     -- Batta
+}
+
+local coins = {}
+
+-- Tạo đồng xu
+for _, data in ipairs(coinData) do
+    local model, outer, inner = createCoin(data.color)
+    table.insert(coins, {
+        model = model,
+        outer = outer,
+        inner = inner,
+        offsetY = data.offset
+    })
+end
+
+-- Cập nhật vị trí trước mặt nhân vật mỗi khung hình
+local conn
+conn = RunService.RenderStepped:Connect(function()
+    if not hrp or not hrp.Parent then
+        conn:Disconnect()
+        return
+    end
+
+    for _, coin in ipairs(coins) do
+        local pos = hrp.Position + hrp.CFrame.LookVector * 4 + Vector3.new(0, coin.offsetY, 0)
+        local cf = CFrame.lookAt(pos, hrp.Position) * CFrame.Angles(0, math.rad(90), 0)
+        coin.outer.CFrame = cf
+        coin.inner.CFrame = cf
+    end
+end)
+
+-- Chờ 3 giây rồi bay vào ngực
+task.wait(3)
+conn:Disconnect()
+
+for _, coin in ipairs(coins) do
+    local goalPos = hrp.Position + hrp.CFrame.LookVector * -0.5
+    local goalCFrame = CFrame.lookAt(goalPos, hrp.Position) * CFrame.Angles(0, math.rad(90), 0)
+
+    TweenService:Create(coin.outer, TweenInfo.new(0.5), {CFrame = goalCFrame}):Play()
+    TweenService:Create(coin.inner, TweenInfo.new(0.5), {CFrame = goalCFrame}):Play()
+end
+
+-- Xóa hiệu ứng sau 0.6 giây
+task.wait(0.6)
+for _, coin in ipairs(coins) do
+    coin.model:Destroy()
+end
